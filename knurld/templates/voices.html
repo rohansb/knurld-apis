@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block body %}
+    <h2>Voices</h2>
+    <p>Guess who is behind the mic?</p>
+    <audio controls="controls" autoplay="autoplay"></audio>
+    <ul>
+    {% for voice in voices %}
+        <li><a href="javascript:void(0);">{{voice}}</a></li>
+    {% endfor %}
+    </ul>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            Results:
+            <pre>
+                {% for message in messages %}
+{{ message }}
+                {% endfor %}
+            </pre>
+        {% endif %}
+    {% endwith %}
+    <script type='text/javascript'>
+        {% for voice in voices %}
+            $('li').click(function(){
+                var str = $(this).text()
+                $('audio').attr('src', str);
+            });
+        {% endfor %}
+    </script>
+{% endblock %}
+{% block nav %}
+<li><a href="{{url_for('index')}}">back</a></li>
+{% endblock %}

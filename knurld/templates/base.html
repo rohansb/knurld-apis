@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Knurld Tests</title>
+        <script type="text/javascript" src="/static/jquery-1.12.0.min.js"></script>
+    </head>
+    <body>
+        <div id="content">
+            {% block body %}{% endblock %}
+        </div>
+        <div id="nav">
+            <br />
+            Navigation:<br />
+            <ul>
+                {% block nav %}{% endblock %}
+                <li><a href="{{url_for('admin')}}">Controller Admin</a></li>
+                <li><a href="{{url_for('voices')}}">Voices</a></li>
+            </ul>
+        </div>
+    </body>
+</html>
