@@ -1,19 +1,27 @@
 """
 Author: Rohan Bakare
 Program: Intednted to access the knurld developer API services, and create a sample app for audio verification
+Reference: https://github.com/jakecoffman/flask-tutorial/blob/master/part%203%20-%20login/demo.py
+https://github.com/joestump/python-oauth2/blob/7d72ac16225a283f0fbf1d1ac6d1d7d20b3136c5/example/client.py
+
+hosted .wav files:
+ kramer: http://audiofiles2.jerryseinfeld.nl/kramer_theassman.wav (knurld verification-id: not created)
+ elaine: http://audiofiles2.jerryseinfeld.nl/hooker.wav (knurld verification-id: a67a3f337823e2d56ec264f8c30c9375)
+ jerry: http://audiofiles2.jerryseinfeld.nl/icaniple.wav (knurld verification-id: not created)
+
 """
 
 import flask
 import flask.views
-from flask_oauthlib.client import OAuth
-from flask_oauthlib.provider import OAuth1Provider
-import functools
+from helpers import login_required
+from knurldOauthClient import *
+import json
 
 app = flask.Flask(__name__)
 
 # TODO place this in config
 app.secret_key = "kramer"
-users = {'kramer': 'knurld'}
+users = {'kramer': 'knurld', 'elaine': 'knurld', 'jerry': 'knurld', 'geroge': 'knurld'}
 
 
 class Main(flask.views.MethodView):
@@ -26,83 +34,87 @@ class Main(flask.views.MethodView):
         if 'logout' in flask.request.form:
             flask.session.pop('username', None)
             return flask.redirect(flask.url_for('index'))
-        required = ['username', 'passwd']
 
+        required = ['username', 'passwd', 'audio_verification_file']
         for r in required:
-            if r not in flask.request.form:
+            if not flask.request.form[r]:
                 flask.flash("Error: {0} is required.".format(r))
                 return flask.redirect(flask.url_for('index'))
 
         username = flask.request.form['username']
         passwd = flask.request.form['passwd']
+        audio_verification_file = flask.request.form['audio_verification_file']
         if username in users and users[username] == passwd:
             flask.session['username'] = username
+            if audio_verification_file:
+                flask.session['audio_verification_file'] = audio_verification_file
+
+                boss = Admin()
+                if not boss.ouath_voice_verification_is_happy():
+                    flask.flash("Audio verification Failed!")
+            else:
+                flask.flash("Audio verification file is required!")
         else:
             flask.flash("Username doesn't exist or incorrect password")
         return flask.redirect(flask.url_for('index'))
 
 
-def login_required(method):
-    @functools.wraps(method)
-    def wrapper(*args, **kwargs):
-        if 'username' in flask.session:
-            return method(*args, **kwargs)
-        else:
-            flask.flash("You required to login to see the page!")
-            return flask.redirect(flask.url_for('index'))
-    return wrapper
-
-
 class Admin(flask.views.MethodView):
 
-    oauth_client = OAuth()
-    oauth_provider = OAuth1Provider(app)
-    oauth_provider.init_app(app)
+    @staticmethod
+    def ouath_voice_verification_is_happy():
 
-    # TODO: config it from a secured place
-    oauth_dict = {'client_id': 'sfgpWaOrgNgLASXQGUQFMdZQA3NmZxG0',
-                  'client_secret': 'wbjADuCttwnJx0nW'
-                  }
-    uri = {'access-token': 'https://api.knurld.io//oauth/client_credential/accesstoken?grant_type=client_credentials', }
+        client = OAuthClient(SERVER, PORT, REQUEST_TOKEN_URL, ACCESS_TOKEN_URL, AUTHORIZATION_URL)
+        consumer = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)
+        signature_method_plaintext = oauth.OAuthSignatureMethod_PLAINTEXT()
+        pause()
 
-    # register to the remote knurld apis
-    knurld = oauth_client.remote_app(
-        'knurld',
-        base_url='https://api.knurld.io//',
-        request_token_url=None,
-        access_token_url='https://api.knurld.io//oauth/client_credential/accesstoken?grant_type=client_credentials',
-        authorize_url=None,
-        consumer_key=oauth_dict['client_id'],
-        consumer_secret=oauth_dict['client_secret']
-        )
+        # get request token
+        print('* Obtain a request token ...')
+        pause()
+        oauth_request = oauth.OAuthRequest.from_consumer_and_token(
+            consumer, callback=CALLBACK_URL, http_url=client.request_token_url)
+        oauth_request.sign_request(signature_method_plaintext, consumer, None)
+        print('REQUEST (via headers)')
+        print('parameters: %s' % str(oauth_request.parameters))
+        pause()
+        token = client.fetch_request_token(oauth_request)
+        print('GOT')
+        print('key: %s' % str(token.key))
+        print('secret: %s' % str(token.secret))
+        print('callback confirmed? %s' % str(token.callback_confirmed))
+        pause()
 
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "client_id": oauth_dict['client_id'],
-        "consumer_secret": oauth_dict['client_secret'],
-    }
+        print('* Authorize the request token ...')
+        pause()
+        oauth_request = oauth.OAuthRequest.from_token_and_callback(
+            token=token, http_url=client.authorization_url)
+        print('REQUEST (via url query string)')
+        print('parameters: %s' % str(oauth_request.parameters))
+        pause()
 
-    @knurld.tokengetter
-    def get_knurld_token(self, token=None):
-        # registering this function as a token getter
-        return token
+        # this will actually occur only on some callback
+        response = client.authorize_token(oauth_request)
+        print('GOT')
+        print(response)
 
-    @login_required
-    def get(self):
+        # is there a better way to get the verifier? not sure
+        query = urlparse.urlparse(response)[4]
+        params = urlparse.parse_qs(query, keep_blank_values=False)
+        verifier = params['oauth_verifier'][0]
+        print('verifier: %s' % verifier)
+        pause()
 
-        # r = requests.post(self.uri['access-token'], json=json.dumps(self.headers))
+        # only verification created for 'elaine benes'
+        global RESOURCE_URL
+        RESOURCE_URL = 'https://api.knurld.io/v1/verifications/a67a3f337823e2d56ec264f8c30c9375'
+        response = client.access_resource(oauth_request)
+        if response:
+            doc = json.dumps(response)
+            if doc['consumer']['username'] == 'elaine':
+                return True
 
-        r = self.get_knurld_token()
-        app.logger.debug(r)
-
-        return flask.render_template('admin.html')
-
-
-    @login_required
-    def post(self):
-        result = eval(flask.request.form['expression'])
-        flask.flash(result)
-        return flask.redirect(flask.url_for('admin'))
+        return False
 
 
 class Voices(flask.views.MethodView):

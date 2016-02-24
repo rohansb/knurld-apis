@@ -9,11 +9,15 @@
     {% else %}
         <p>A login is required:</p>
         <form action="{{url_for('index')}}" method="post">
-            <p>Username:<br />
+            <p>Username(*):<br />
             <input type="text" name="username" /></p>
-            <p>Password:<br />
+            <p>Password(*):<br />
             <input type="password" name="passwd" /></p>
+            <p>Remote location for your audio file in .wav format(*):<br />
+            <input type="text" name="audio_verification_file" size="55"/></p>
             <p><input type="submit" value="submit" /></p>
+            <br>
+            <p>* - required for authentication</p>
         </form>
     {% endif %}
     {% with messages = get_flashed_messages() %}
