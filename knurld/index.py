@@ -14,14 +14,14 @@ hosted .wav files:
 import flask
 import flask.views
 from helpers import login_required
-from knurldOauthClient import *
-import json
+import httplib2
 
 app = flask.Flask(__name__)
 
 # TODO place this in config
 app.secret_key = "kramer"
 users = {'kramer': 'knurld', 'elaine': 'knurld', 'jerry': 'knurld', 'geroge': 'knurld'}
+ACCESS_TOKEN_URL = 'https://api.knurld.io//oauth/client_credential/accesstoken?grant_type=client_credentials'
 
 
 class Main(flask.views.MethodView):
@@ -49,9 +49,11 @@ class Main(flask.views.MethodView):
             if audio_verification_file:
                 flask.session['audio_verification_file'] = audio_verification_file
 
+                # begin audio verification here
                 boss = Admin()
-                if not boss.ouath_voice_verification_is_happy():
-                    flask.flash("Audio verification Failed!")
+                verified = boss.verify_user_based_on_the_audio(audio_verification_file)
+                if not verified:
+                    flask.flash("Username doesn't exist or incorrect password")
             else:
                 flask.flash("Audio verification file is required!")
         else:
@@ -62,67 +64,48 @@ class Main(flask.views.MethodView):
 class Admin(flask.views.MethodView):
 
     @staticmethod
-    def ouath_voice_verification_is_happy():
+    def get():
+        return flask.render_template('admin.html')
 
-        client = OAuthClient(SERVER, PORT, REQUEST_TOKEN_URL, ACCESS_TOKEN_URL, AUTHORIZATION_URL)
-        consumer = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)
-        signature_method_plaintext = oauth.OAuthSignatureMethod_PLAINTEXT()
-        pause()
+    @staticmethod
+    def post():
+        return flask.render_template('admin.html')
 
-        # get request token
-        print('* Obtain a request token ...')
-        pause()
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(
-            consumer, callback=CALLBACK_URL, http_url=client.request_token_url)
-        oauth_request.sign_request(signature_method_plaintext, consumer, None)
-        print('REQUEST (via headers)')
-        print('parameters: %s' % str(oauth_request.parameters))
-        pause()
-        token = client.fetch_request_token(oauth_request)
-        print('GOT')
-        print('key: %s' % str(token.key))
-        print('secret: %s' % str(token.secret))
-        print('callback confirmed? %s' % str(token.callback_confirmed))
-        pause()
+    @staticmethod
+    def verify_user_based_on_the_audio(audio_file):
+        _verified = False
 
-        print('* Authorize the request token ...')
-        pause()
-        oauth_request = oauth.OAuthRequest.from_token_and_callback(
-            token=token, http_url=client.authorization_url)
-        print('REQUEST (via url query string)')
-        print('parameters: %s' % str(oauth_request.parameters))
-        pause()
+        # get the token
+        #   - what is the simplest possible way?
+        #       - use httplib2 -------- DONE
+        #       - use urllib2 instead to do the same thing, because its the norm as being a better library:
+        #           http://hustcalm.me/blog/2013/11/14/httplib-httplib2-urllib-urllib2-whats-the-difference/
+        #
 
-        # this will actually occur only on some callback
-        response = client.authorize_token(oauth_request)
-        print('GOT')
-        print(response)
+        #   - renew it every hour --------- IN-PROGRESS
+        #   - make it as a decorator which can be used everywhere?
 
-        # is there a better way to get the verifier? not sure
-        query = urlparse.urlparse(response)[4]
-        params = urlparse.parse_qs(query, keep_blank_values=False)
-        verifier = params['oauth_verifier'][0]
-        print('verifier: %s' % verifier)
-        pause()
+        http = httplib2.Http()
 
-        # only verification created for 'elaine benes'
-        global RESOURCE_URL
-        RESOURCE_URL = 'https://api.knurld.io/v1/verifications/a67a3f337823e2d56ec264f8c30c9375'
-        response = client.access_resource(oauth_request)
-        if response:
-            doc = json.dumps(response)
-            if doc['consumer']['username'] == 'elaine':
-                return True
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        body = 'client_id=sfgpWaOrgNgLASXQGUQFMdZQA3NmZxG0&client_secret=wbjADuCttwnJx0nW'
+        response, content = http.request(uri=ACCESS_TOKEN_URL, method='POST', body=body, headers=headers)
 
-        return False
+        print(content)
+
+        return _verified
 
 
 class Voices(flask.views.MethodView):
     @login_required
     def get(self):
-        voices = ['http://www.soundboards.ws/data/sounds/368.mp3',
-                 'http://www.soundboards.ws/data/sounds/1/804.mp3',
-                 'http://www.soundboards.ws/data/sounds/1/391.mp3']
+        voices = [
+                'http://audiofiles2.jerryseinfeld.nl/kramer_theassman.wav',
+                'http://audiofiles2.jerryseinfeld.nl/hooker.wav',
+                'http://audiofiles2.jerryseinfeld.nl/icaniple.wav',
+                'http://www.soundboards.ws/data/sounds/368.mp3',
+                'http://www.soundboards.ws/data/sounds/1/804.mp3',
+                'http://www.soundboards.ws/data/sounds/1/391.mp3']
 
         return flask.render_template("voices.html", voices=voices)
 
@@ -139,5 +122,10 @@ app.add_url_rule('/voices/',
 
 if __name__ == '__main__':
 
-    app.debug = True
-    app.run()
+    # app.debug = True
+    # app.run()
+
+    audio_verification_file = 'http://audiofiles2.jerryseinfeld.nl/kramer_theassman.wav'
+
+    boss = Admin()
+    verified = boss.verify_user_based_on_the_audio(audio_verification_file)
