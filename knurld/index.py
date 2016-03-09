@@ -14,14 +14,21 @@ hosted .wav files:
 import flask
 import flask.views
 from helpers import login_required
-import httplib2
+from config import Configuration, TokenGetter
+import time
+
+# importing self app initialized in the __init__.py for the app
+# from knurld import app
 
 app = flask.Flask(__name__)
-
 # TODO place this in config
 app.secret_key = "kramer"
+
 users = {'kramer': 'knurld', 'elaine': 'knurld', 'jerry': 'knurld', 'geroge': 'knurld'}
-ACCESS_TOKEN_URL = 'https://api.knurld.io//oauth/client_credential/accesstoken?grant_type=client_credentials'
+
+# json object
+config = Configuration().config
+token = TokenGetter()
 
 
 class Main(flask.views.MethodView):
@@ -80,18 +87,32 @@ class Admin(flask.views.MethodView):
         #       - use httplib2 -------- DONE
         #       - use urllib2 instead to do the same thing, because its the norm as being a better library:
         #           http://hustcalm.me/blog/2013/11/14/httplib-httplib2-urllib-urllib2-whats-the-difference/
-        #
+        #           ""urllib/urllib2 is built on top of httplib""
+        #       - use "reuqests" package instead. It turns out that the requests is even a better package as it wraps
+        #           functionality of urllib (encoding etc) + urllib2 (actual requests etc)
 
         #   - renew it every hour --------- IN-PROGRESS
+        #       - this is a perfect use case for "memcached" as we need to renew it every 60 min, we can expire
+        #       memcached every 59 min
+        #       - figure out the way to use dogpile.cache
+        #       - is setting "url" argument necessary in dogpile region?
+        #       - using Redis Vs Memcached behind the scenes? What is the difference? Which is better?
         #   - make it as a decorator which can be used everywhere?
 
-        http = httplib2.Http()
+        from redis_cache import cache_it_json
+        from redis_cache import SimpleCache
 
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        body = 'client_id=sfgpWaOrgNgLASXQGUQFMdZQA3NmZxG0&client_secret=wbjADuCttwnJx0nW'
-        response, content = http.request(uri=ACCESS_TOKEN_URL, method='POST', body=body, headers=headers)
+        #@region.cache_on_arguments(namespace='dev.knurld')
+        #@cache_it_json(limit=1, expire=10)
 
-        print(content)
+        #token = region.get_or_create("this_hour_token", creator=get_access_token, expiration_time=10, should_cache_fn=cached_token)
+
+        tokengetter = TokenGetter()
+
+        for i in range(1, 10):
+            time.sleep(2)
+            token = tokengetter.get_token()
+            print('TOKEN: ---> ' + str(token))
 
         return _verified
 
@@ -121,9 +142,6 @@ app.add_url_rule('/voices/',
 
 
 if __name__ == '__main__':
-
-    # app.debug = True
-    # app.run()
 
     audio_verification_file = 'http://audiofiles2.jerryseinfeld.nl/kramer_theassman.wav'
 
