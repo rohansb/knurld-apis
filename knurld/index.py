@@ -13,9 +13,10 @@ hosted .wav files:
 
 import flask
 import flask.views
+
 from helpers import login_required
-from config import Configuration, TokenGetter
-import time
+
+from APIManager import TokenGetter, AppModeler
 
 # importing self app initialized in the __init__.py for the app
 # from knurld import app
@@ -24,11 +25,8 @@ app = flask.Flask(__name__)
 # TODO place this in config
 app.secret_key = "kramer"
 
+# TODO database: table Users[''username', 'passwordd']
 users = {'kramer': 'knurld', 'elaine': 'knurld', 'jerry': 'knurld', 'geroge': 'knurld'}
-
-# json object
-config = Configuration().config
-token = TokenGetter()
 
 
 class Main(flask.views.MethodView):
@@ -51,6 +49,7 @@ class Main(flask.views.MethodView):
         username = flask.request.form['username']
         passwd = flask.request.form['passwd']
         audio_verification_file = flask.request.form['audio_verification_file']
+
         if username in users and users[username] == passwd:
             flask.session['username'] = username
             if audio_verification_file:
@@ -99,20 +98,29 @@ class Admin(flask.views.MethodView):
         #       - using Redis Vs Memcached behind the scenes? What is the difference? Which is better?
         #   - make it as a decorator which can be used everywhere?
 
-        from redis_cache import cache_it_json
-        from redis_cache import SimpleCache
+        # from redis_cache import cache_it_json
+        # from redis_cache import SimpleCache
 
-        #@region.cache_on_arguments(namespace='dev.knurld')
-        #@cache_it_json(limit=1, expire=10)
+        # @region.cache_on_arguments(namespace='dev.knurld')
+        # @cache_it_json(limit=1, expire=10)
 
-        #token = region.get_or_create("this_hour_token", creator=get_access_token, expiration_time=10, should_cache_fn=cached_token)
+        # token = region.get_or_create("this_hour_token", creator=get_access_token, expiration_time=10,
+        #  should_cache_fn=cached_token)
 
-        tokengetter = TokenGetter()
+        tg = TokenGetter()
+        my_token = tg.get_token()
 
-        for i in range(1, 10):
-            time.sleep(2)
-            token = tokengetter.get_token()
-            print('TOKEN: ---> ' + str(token))
+        print(my_token)
+
+        am = AppModeler(my_token)
+        my_model = am.create_app_model()
+        print(my_model)
+        print(am.app_model_id)
+
+        # for i in range(1, 10):
+        #    time.sleep(2)
+        #    token = tg.get_token()
+        #    print('TOKEN: ---> ' + str(token))
 
         return _verified
 
@@ -143,7 +151,10 @@ app.add_url_rule('/voices/',
 
 if __name__ == '__main__':
 
-    audio_verification_file = 'http://audiofiles2.jerryseinfeld.nl/kramer_theassman.wav'
+    # running the app here
+    # app.run(debug=True)
+
+    hosted_audio = 'http://audiofiles2.jerryseinfeld.nl/kramer_theassman.wav'
 
     boss = Admin()
-    verified = boss.verify_user_based_on_the_audio(audio_verification_file)
+    verified = boss.verify_user_based_on_the_audio(hosted_audio)
