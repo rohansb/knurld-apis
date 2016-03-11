@@ -5,11 +5,21 @@ from datetime import datetime
 import app_globals as g
 
 
+class Enrollment(object):
+    pass
+
+
 class Consumer(object):
 
     def __init__(self, token):
         self._token = token
         self.consumer = None
+
+    @property
+    def consumer_id(self):
+        if self.consumer:
+            return self.consumer.split('/')[-1]
+        return None
 
     def upsert_consumer(self, payload, consumer_id=None):
         """

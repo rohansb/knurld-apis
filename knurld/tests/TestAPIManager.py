@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 from APIManager import TokenGetter, AppModeler, Consumer
 
 
+class TestEnrollment(unittest.TestCase):
+    pass
+
+
 class TestConsumer(unittest.TestCase):
 
     tg = TokenGetter()
