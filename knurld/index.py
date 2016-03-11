@@ -16,7 +16,7 @@ import flask.views
 
 from helpers import login_required
 
-from APIManager import TokenGetter, AppModeler
+from APIManager import TokenGetter, AppModeler, Consumer
 
 # importing self app initialized in the __init__.py for the app
 # from knurld import app
@@ -113,9 +113,17 @@ class Admin(flask.views.MethodView):
         print(my_token)
 
         am = AppModeler(my_token)
-        my_model = am.create_app_model()
+        my_model = am.upsert_app_model()
+        # my_model = am.upsert_app_model(app_model_id='a67a3f337823e2d56ec264f8c3696e10')
+
         print(my_model)
         print(am.app_model_id)
+
+        c = Consumer(my_token)
+        print(c.upsert_consumer())
+
+        # print('get::')
+        # print(am.get_app_model())
 
         # for i in range(1, 10):
         #    time.sleep(2)

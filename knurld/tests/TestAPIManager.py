@@ -1,15 +1,60 @@
 import unittest
 from datetime import datetime, timedelta
 
-from APIManager import TokenGetter, AppModeler
+from APIManager import TokenGetter, AppModeler, Consumer
+
+
+class TestConsumer(unittest.TestCase):
+
+    tg = TokenGetter()
+    token = tg.get_token()
+    c = Consumer(token)
+
+    def test_upsert_consumer(self):
+
+        payload = {
+            "gender": "M",
+            "username": "theo" + str(datetime.now()),   # making sure of unique username each time
+            "password": "walcott"
+        }
+
+        consumer = self.c.upsert_consumer(payload, self.token)
+        consumer_pattern = '.*knurld.*consumers\/\w{32}'
+
+        self.assertRegexpMatches(consumer, consumer_pattern)
+
+    def test_get_consumer(self):
+        consumer = self.c.get_consumer()
+        consumer_pattern = '.*knurld.*consumers\/\w{32}'
+
+        self.assertRegexpMatches(consumer, consumer_pattern)
 
 
 class TestAppModeler(unittest.TestCase):
 
     tg = TokenGetter()
+    token = tg.get_token()
+    am = AppModeler(token)
 
-    def create_app_model(self):
-        pass
+    def test_upsert_app_model(self):
+
+        payload = {
+            "vocabulary": ["boston", "chicago", "pyramid"],
+            "verificationLength": 3,
+            "enrollmentRepeats": 3
+        }
+
+        # TODO: currently the upsert method can only create an app model, so modify this test when it method evolves
+        app_model = self.am.upsert_app_model(payload)
+        app_model_pattern = '.*knurld.*app-models\/\w{32}'
+
+        self.assertRegexpMatches(app_model, app_model_pattern)
+
+    def test_get_app_model(self):
+        app_model = self.am.get_app_model()
+        app_model_pattern = '.*knurld.*app-models\/\w{32}'
+
+        self.assertRegexpMatches(app_model, app_model_pattern)
 
 
 class TestTokenGetter(unittest.TestCase):
