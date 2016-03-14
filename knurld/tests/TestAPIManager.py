@@ -1,18 +1,40 @@
+import time
 import unittest
 from datetime import datetime, timedelta
 
-from APIManager import TokenGetter, AppModeler, Consumer
+from APIManager import TokenGetter, AppModeler, Consumer, Enrollment
+
+
+def unique_id_pattern():
+    return '\w{32}'
+
+
+def temp_token():
+    # obtain a valid test token
+    tg = TokenGetter()
+    return tg.get_token()
 
 
 class TestEnrollment(unittest.TestCase):
-    pass
+
+    model_id = '3c1bbea5f380bcbfef6910e0c879bd04'  # "boston", "chicago", "san francisco"
+    consumer_id = '3c1bbea5f380bcbfef6910e0c879bf82'  # M theo walcott
+
+    e = Enrollment(temp_token(), model_id, consumer_id)
+
+    def test_upsert_enrollment(self):
+        self.assertRegexpMatches(self.e.upsert_enrollment(), unique_id_pattern())
+
+    def test_get_enrollment(self):
+        self.assertRegexpMatches(self.e.get_enrollment(), unique_id_pattern())
+
+        enrollment_id = 'a67a3f337823e2d56ec264f8c3d6ceb5'
+        self.assertRegexpMatches(self.e.get_enrollment(enrollment_id), unique_id_pattern())
 
 
 class TestConsumer(unittest.TestCase):
 
-    tg = TokenGetter()
-    token = tg.get_token()
-    c = Consumer(token)
+    c = Consumer(temp_token())
 
     def test_upsert_consumer(self):
 
@@ -22,23 +44,24 @@ class TestConsumer(unittest.TestCase):
             "password": "walcott"
         }
 
-        consumer = self.c.upsert_consumer(payload, self.token)
-        consumer_pattern = '.*knurld.*consumers\/\w{32}'
-
-        self.assertRegexpMatches(consumer, consumer_pattern)
+        # TODO: currently the upsert method can only create a consumer, so modify this test when it's method evolves
+        consumer = self.c.upsert_consumer(payload, temp_token())
+        self.assertRegexpMatches(consumer, unique_id_pattern())
 
     def test_get_consumer(self):
-        consumer = self.c.get_consumer()
-        consumer_pattern = '.*knurld.*consumers\/\w{32}'
 
-        self.assertRegexpMatches(consumer, consumer_pattern)
+        consumer = self.c.get_consumer()
+        self.assertRegexpMatches(consumer, unique_id_pattern())
+
+        # test for specific model id
+        consumer_id = '3c1bbea5f380bcbfef6910e0c879bf82'  # M theo walcott
+        consumer = self.c.get_consumer(consumer_id)
+        self.assertRegexpMatches(consumer, unique_id_pattern())
 
 
 class TestAppModeler(unittest.TestCase):
 
-    tg = TokenGetter()
-    token = tg.get_token()
-    am = AppModeler(token)
+    am = AppModeler(temp_token())
 
     def test_upsert_app_model(self):
 
@@ -48,17 +71,19 @@ class TestAppModeler(unittest.TestCase):
             "enrollmentRepeats": 3
         }
 
-        # TODO: currently the upsert method can only create an app model, so modify this test when it method evolves
+        # TODO: currently the upsert method can only create an app model, so modify this test when it's method evolves
         app_model = self.am.upsert_app_model(payload)
-        app_model_pattern = '.*knurld.*app-models\/\w{32}'
-
-        self.assertRegexpMatches(app_model, app_model_pattern)
+        self.assertRegexpMatches(app_model, unique_id_pattern())
 
     def test_get_app_model(self):
-        app_model = self.am.get_app_model()
-        app_model_pattern = '.*knurld.*app-models\/\w{32}'
 
-        self.assertRegexpMatches(app_model, app_model_pattern)
+        app_model = self.am.get_app_model()
+        self.assertRegexpMatches(app_model, unique_id_pattern())
+
+        # test for specific model id
+        model_id = '3c1bbea5f380bcbfef6910e0c879bd04'  # "boston", "chicago", "san francisco"
+        app_model = self.am.get_app_model(model_id)
+        self.assertRegexpMatches(app_model, unique_id_pattern())
 
 
 class TestTokenGetter(unittest.TestCase):
@@ -92,6 +117,33 @@ class TestTokenGetter(unittest.TestCase):
 
         # set up for an unexpired token (assuming self.tg object is created just a moments ago, this is a valid token)
         self.assertEqual(new_token, self.tg.get_token())
+
+    def test_token_renew_frequency(self):
+        """
+        With this test, a token is set to expire every 10 seconds
+        Fetches and prints a token at 2 seconds interval
+        Assert that we get two unique tokens
+        """
+        until = 10
+        interval = 2
+
+        # get the token that expires in 10 seconds
+        self.tg = TokenGetter(expires=10)
+
+        tokens = []
+        # check if the token expires properly in set interval and the new toke is successfully fetched after expiry only
+        for i in range(1, until):
+            time.sleep(interval)
+
+            # fetch token
+            token = self.tg.get_token()
+            print('TOKEN: ---> ' + str(token))
+
+            # put it in the list
+            tokens.append(token)
+
+        # assert for exactly two unique tokens during 10 * 2 = 20 seconds of overall time
+        self.assertEquals(len(set(tokens)), 2)
 
 
 if __name__ == '__main__':

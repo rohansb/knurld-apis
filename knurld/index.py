@@ -110,17 +110,36 @@ class Admin(flask.views.MethodView):
         tg = TokenGetter()
         my_token = tg.get_token()
 
+        print('-----'*10)
         print(my_token)
 
+        """
+        payload = {
+                "vocabulary": ["boston", "chicago", "pyramid"],
+                "verificationLength": 3,
+                "enrollmentRepeats": 3
+            }
+        """
+
         am = AppModeler(my_token)
-        my_model = am.upsert_app_model()
+        test_model_id = '3c1bbea5f380bcbfef6910e0c879bd04'  # "boston", "chicago", "san francisco"
+        my_model = am.get_app_model(test_model_id)
         # my_model = am.upsert_app_model(app_model_id='a67a3f337823e2d56ec264f8c3696e10')
 
         print(my_model)
         print(am.app_model_id)
 
+        """
+        payload = {
+            "gender": "M",
+            "username": "theo",
+            "password": "walcott"
+        }
+        """
+
         c = Consumer(my_token)
-        print(c.upsert_consumer())
+        test_consumer_id = '3c1bbea5f380bcbfef6910e0c879bf82'  # M theo walcott
+        print(c.get_consumer(test_consumer_id))
 
         # print('get::')
         # print(am.get_app_model())
